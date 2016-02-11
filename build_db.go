@@ -23,6 +23,7 @@ type DatabaseBuilder struct {
 	testdir      string
 	registerOnce sync.Once
 	funcs        []customFunc
+	extensions   []string
 }
 
 func NewDatabaseBuilder(testdir string) *DatabaseBuilder {
@@ -72,6 +73,10 @@ func (d *DatabaseBuilder) RegisterFn(name string, fn interface{}, pure bool) {
 	})
 }
 
+func (d *DatabaseBuilder) RegisterExtension(name string) {
+	d.extensions = append(d.extensions, name)
+}
+
 func (d DatabaseBuilder) BuildDatabase(name string, sources ...string) (db *sql.DB, err error) {
 	dbpath := fmt.Sprintf("%s/%s.db", d.testdir, name)
 	os.Remove(dbpath)
@@ -80,6 +85,7 @@ func (d DatabaseBuilder) BuildDatabase(name string, sources ...string) (db *sql.
 
 	d.registerOnce.Do(func() {
 		sql.Register(drivername, &sqlite.SQLiteDriver{
+			Extensions: d.extensions,
 			ConnectHook: func(conn *sqlite.SQLiteConn) error {
 				for _, f := range d.funcs {
 					if err := conn.RegisterFunc(f.name, f.impl, f.pure); err != nil {
